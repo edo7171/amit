@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ניהול סניפים וקופות</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#eef2f1; --surface:#ffffff; --ink:#16302b; --muted:#5d7571; --line:#cfdad7;
+  --accent:#0f6b5c; --accent-ink:#ffffff; --danger:#b3392f; --soft:#e3ece9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#101a18; --surface:#182623; --ink:#e4efec; --muted:#93aaa5; --line:#2c403c;
+    --accent:#4fc3ad; --accent-ink:#0b1a17; --danger:#ef8d84; --soft:#21332f;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#101a18; --surface:#182623; --ink:#e4efec; --muted:#93aaa5; --line:#2c403c;
+  --accent:#4fc3ad; --accent-ink:#0b1a17; --danger:#ef8d84; --soft:#21332f;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Heebo",Arial,sans-serif;font-size:16px;line-height:1.5}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:26px;font-weight:700;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+label{display:block;font-size:14px;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-height:42px}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.ltr{direction:ltr;text-align:right}
+.pick{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.pick .grow{flex:1;min-width:200px}
+button{font:inherit;cursor:pointer;border-radius:6px;padding:9px 16px;min-height:42px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:500}
+button.danger{color:var(--danger)}
+button.ghost{background:transparent}
+.newbox{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);gap:10px;align-items:flex-end;flex-wrap:wrap}
+.newbox.open{display:flex}
+.newbox .grow{flex:1;min-width:140px}
+.err{color:var(--danger);font-size:14px;min-height:20px;margin:6px 0 0}
+.fields{display:grid;grid-template-columns:1fr 2fr;gap:12px}
+.head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.head h2{font-size:18px;margin:0}
+.saved{font-size:13px;color:var(--muted)}
+.last{margin:0 0 14px;color:var(--muted)}
+.last strong{color:var(--ink);font-weight:700}
+.sumout{white-space:pre-wrap;background:var(--soft);border-radius:8px;padding:12px;margin:12px 0;font:inherit;max-height:260px;overflow:auto}
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{display:grid;grid-template-columns:90px 1fr 1fr 110px 150px 110px 120px auto;gap:10px;align-items:end;padding:12px;background:var(--soft);border-radius:8px}
+.row .x{min-width:42px;padding:9px}
+.row select[data-v="ok"]{border-color:var(--accent);color:var(--accent);font-weight:500}
+.row select[data-v="bad"]{border-color:var(--danger);color:var(--danger);font-weight:500}
+.row.frow{grid-template-columns:110px 130px 160px 110px 1fr}
+.fname{font-weight:700;padding-bottom:10px}
+.row.prow{grid-template-columns:1fr 170px auto}
+.empty{color:var(--muted);padding:12px 0}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.gallery figure{margin:0;display:flex;flex-direction:column;gap:6px}
+.gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
+.box{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:50;cursor:zoom-out;padding:16px}
+.box img{max-width:100%;max-height:100%;border-radius:6px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.tools button{font-size:14px}
+.none{text-align:center;color:var(--muted);padding:32px 12px}
+@media (max-width:640px){
+  .fields{grid-template-columns:1fr}
+  .row{grid-template-columns:1fr 1fr}
+  .row .x{grid-column:1 / -1}
+  .row.frow{grid-template-columns:1fr 1fr}
+  .row.prow{grid-template-columns:1fr 1fr}
+  .fname{grid-column:1 / -1;padding-bottom:0}
+}
+[hidden]{display:none!important}
+.authwrap{min-height:80vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.authbox{width:100%;max-width:400px;margin:0}
+.authbox h1{margin-bottom:6px}
+.stack{display:flex;flex-direction:column;gap:12px;margin-bottom:4px}
+button.link{border:0;padding:6px 0;min-height:0;color:var(--accent);background:transparent;text-decoration:underline;margin-top:10px}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.who{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.who .mail{direction:ltr}
+.badge{background:var(--soft);color:var(--ink);border-radius:999px;padding:2px 10px;font-size:13px}
+.row.urow{grid-template-columns:1fr 150px 180px;align-items:center}
+.umail{direction:ltr;text-align:right;overflow-wrap:anywhere;font-weight:500}
+.toolmsg{font-size:14px;color:var(--muted);align-self:center}
+input:disabled,select:disabled{opacity:.85;cursor:default}
+body.ro #detail button,body.ro #addBranchBtn,body.ro #importBtn,body.ro #newBox{display:none!important}
+@media (max-width:640px){.row.urow{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="authwrap" id="loadScreen">
+  <section class="panel authbox">
+    <p id="loadMsg" style="margin:0">טוען…</p>
+    <button type="button" class="link" id="loadLogout" hidden>התנתק</button>
+  </section>
+</div>
+
+<div class="authwrap" id="authScreen" hidden>
+  <section class="panel authbox">
+    <h1>סניפים וקופות</h1>
+    <p class="sub" id="authSub">התחבר כדי להמשיך.</p>
+    <div class="stack">
+      <div id="nameWrap" hidden><label for="authName">שם מלא</label><input id="authName" autocomplete="name"></div>
+      <div><label for="authEmail">אימייל</label><input id="authEmail" type="email" class="ltr" autocomplete="username"></div>
+      <div><label for="authPass">סיסמה</label><input id="authPass" type="password" class="ltr" autocomplete="current-password"></div>
+    </div>
+    <p class="err" id="authErr" role="alert"></p>
+    <div class="pick">
+      <button type="button" class="primary" id="authGo">התחבר</button>
+      <button type="button" class="ghost" id="authToggle">אין לך חשבון? הרשמה</button>
+    </div>
+    <button type="button" class="link" id="authReset">שכחתי סיסמה</button>
+  </section>
+</div>
+
+<div class="authwrap" id="pendingScreen" hidden>
+  <section class="panel authbox">
+    <h1>ממתין לאישור</h1>
+    <p>החשבון <strong class="ltr" id="pendMail"></strong> נוצר ומחכה שמנהל יאשר אותו. הדף יתעדכן לבד ברגע שתאושר.</p>
+    <button type="button" id="pendLogout">התנתק</button>
+  </section>
+</div>
+
+<main id="app" hidden>
+  <div class="topbar">
+    <div>
+      <h1>סניפים וקופות</h1>
+      <p class="sub">בחר מספר סניף כדי לראות את כל העמדות שלו. כל שינוי נשמר אוטומטית בענן ומסתנכרן בין כל המשתמשים.</p>
+    </div>
+    <div class="who">
+      <span class="mail" id="whoMail"></span>
+      <span class="badge" id="whoRole"></span>
+      <button type="button" id="logoutBtn">התנתק</button>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="pick">
+      <div class="grow">
+        <label for="branchSel">מספר סניף</label>
+        <select id="branchSel"></select>
+      </div>
+      <button class="primary" id="addBranchBtn" type="button">הוסף סניף</button>
+    </div>
+    <div class="newbox" id="newBox">
+      <div class="grow">
+        <label for="newNum">מספר סניף חדש</label>
+        <input id="newNum" class="ltr" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="grow">
+        <label for="newName">שם סניף (לא חובה)</label>
+        <input id="newName" autocomplete="off">
+      </div>
+      <button class="primary" id="createBtn" type="button">צור סניף</button>
+      <button class="ghost" id="cancelBtn" type="button">ביטול</button>
+    </div>
+    <p class="err" id="err" role="alert"></p>
+  </section>
+
+  <div id="detail"></div>
+
+  <section class="panel" id="summary">
+    <div class="head"><h2>סיכום חודשי</h2><span class="saved" id="sumMsg" aria-live="polite"></span></div>
+    <div class="pick">
+      <div class="grow"><label for="sumMonth">חודש</label><input type="month" id="sumMonth"></div>
+      <div class="grow"><label for="sumMail">כתובת מייל לשליחה</label><input type="email" id="sumMail" class="ltr" autocomplete="email"></div>
+    </div>
+    <pre class="sumout" id="sumOut"></pre>
+    <div class="pick">
+      <button type="button" class="primary" id="sumGmail">שלח ב-Gmail</button>
+      <button type="button" id="sumSend">פתח באפליקציית מייל</button>
+      <button type="button" id="sumCopy">העתק סיכום</button>
+    </div>
+  </section>
+
+  <section class="panel" id="adminPanel" hidden>
+    <div class="head"><h2>משתמשים והרשאות</h2><span class="saved" id="userCount"></span></div>
+    <div class="rows" id="userRows"></div>
+  </section>
+
+  <div class="tools">
+    <button type="button" id="exportBtn">שמור גיבוי לקובץ</button>
+    <button type="button" id="importBtn">טען גיבוי מקובץ</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <span class="toolmsg" id="toolMsg" aria-live="polite"></span>
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDXS_BFI1bPxluUaXYWslfqUvoTQsyxcdQ",
+  authDomain: "amit-88477.firebaseapp.com",
+  projectId: "amit-88477",
+  storageBucket: "amit-88477.firebasestorage.app",
+  messagingSenderId: "234712018991",
+  appId: "1:234712018991:web:3766549c431783a07a16da"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+// מטמון מקומי: הנתונים נשארים זמינים גם בלי אינטרנט ונשלחים כשהחיבור חוזר
+const db = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+
+var SEL_KEY = "branches-selected";
+var LEGACY_KEY = "branches-registers-v1";
+var MIGRATED_KEY = "branches-migrated-v1";
+var SUM_KEY = "branches-summary-email";
+var ROLES = { pending: "ממתין לאישור", viewer: "צפייה בלבד", editor: "עריכה", admin: "מנהל" };
+
+var data = { branches: [], selected: null };
+var me = null, canEdit = false, isAdmin = false;
+var photos = {};          // branchId -> { photos: [], regPhotos: [] }
+var dirty = {};           // branchId -> טיימר שמירה
+var subs = { branches: null, photos: null, users: null, profile: null };
+var photoBranch = null, pendingRemote = false, pendingName = "", loaded = false, started = false;
+var sigs = {};
+
+var ERR = {
+  "auth/invalid-credential": "אימייל או סיסמה שגויים.",
+  "auth/wrong-password": "אימייל או סיסמה שגויים.",
+  "auth/user-not-found": "אימייל או סיסמה שגויים.",
+  "auth/invalid-email": "כתובת האימייל לא תקינה.",
+  "auth/missing-password": "הכנס סיסמה.",
+  "auth/email-already-in-use": "כבר קיים חשבון עם האימייל הזה.",
+  "auth/weak-password": "הסיסמה חלשה מדי (לפחות 6 תווים).",
+  "auth/too-many-requests": "יותר מדי ניסיונות. נסה שוב בעוד כמה דקות.",
+  "auth/network-request-failed": "אין חיבור לאינטרנט.",
+  "auth/operation-not-allowed": "התחברות באימייל וסיסמה לא מופעלת בפרויקט Firebase.",
+  "permission-denied": "אין לך הרשאה לפעולה הזו.",
+  "unavailable": "אין חיבור לשרת. השינויים יישמרו כשהחיבור יחזור.",
+  "resource-exhausted": "חרגת ממכסת השימוש של Firebase.",
+  "invalid-argument": "הנתונים גדולים מדי או לא תקינים.",
+  "failed-precondition": "מסד הנתונים עדיין לא נוצר בפרויקט Firebase."
+};
+function errText(e){ return (e && ERR[e.code]) || (e && e.message) || "שגיאה לא צפויה."; }
+
+function $(id){ return document.getElementById(id); }
+function show(id){ ["loadScreen", "authScreen", "pendingScreen", "app"].forEach(function(s){ $(s).hidden = s !== id; }); }
+function sig(b){ return JSON.stringify(b, function(k, v){ return k === "updated" || k === "visits" || k === "updatedBy" ? undefined : v; }); }
+function dayKey(ts){
+  var d = new Date(ts);
+  function p(n){ return (n < 10 ? "0" : "") + n; }
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function fmt(ts){
+  try { return new Date(ts).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+  catch(e) { return new Date(ts).toString(); }
+}
+function lastText(b){ return b && b.updated ? fmt(b.updated) + (b.updatedBy ? " (" + b.updatedBy + ")" : "") : "עדיין לא נשמר"; }
+function updateLast(){ var el = $("lastSaved"); if (el) el.textContent = lastText(current()); }
+function uid(){ return "i" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(t){ return String(t == null ? "" : t).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function current(){ return data.branches.find(function(b){ return b.id === data.selected; }); }
+function showErr(msg){ $("err").textContent = msg || ""; }
+function toolMsg(t){ $("toolMsg").textContent = t || ""; }
+var savedTimer;
+function setSaved(t, fade){
+  var s = $("savedMsg"); if (!s) return;
+  s.textContent = t; clearTimeout(savedTimer);
+  if (fade) savedTimer = setTimeout(function(){ s.textContent = ""; }, 2000);
+}
+function rememberSel(){ try { localStorage.setItem(SEL_KEY, data.selected || ""); } catch(e) {} }
+
+/* ---------- Firestore: סניפים ---------- */
+function fromDoc(d){
+  var b = Object.assign({ id: d.id }, d.data());
+  b.stations = b.stations || []; b.printers = b.printers || []; b.fixed = b.fixed || {}; b.visits = b.visits || [];
+  return b;
+}
+function payload(b){
+  return JSON.parse(JSON.stringify({
+    number: String(b.number || ""), name: b.name || "",
+    stations: b.stations || [], fixed: b.fixed || {}, printers: b.printers || [],
+    updated: b.updated || null, visits: b.visits || [], updatedBy: me ? me.email : ""
+  }));
+}
+function stampCurrent(){
+  var b = current(); if (!b || !canEdit) return false;
+  var s = sig(b);
+  if (sigs[b.id] === s) return false;
+  sigs[b.id] = s; markVisit(b);
+  return true;
+}
+function markVisit(b){
+  b.updated = Date.now(); b.updatedBy = me ? me.email : "";
+  var dk = dayKey(b.updated); b.visits = b.visits || [];
+  if (b.visits.indexOf(dk) === -1) b.visits.push(dk);
+}
+function touch(id){
+  var b = data.branches.find(function(x){ return x.id === id; }); if (!b) return;
+  markVisit(b); sigs[id] = sig(b); queueWrite(id);
+  if (id === data.selected) updateLast();
+  renderSummary();
+}
+function save(){
+  if (stampCurrent()) queueWrite(current().id);
+  updateLast(); renderSummary();
+}
+function queueWrite(id){
+  clearTimeout(dirty[id]);
+  dirty[id] = setTimeout(function(){ flush(id); }, 700);
+  setSaved("שומר…");
+}
+function flush(id){
+  clearTimeout(dirty[id]); delete dirty[id];
+  var b = data.branches.find(function(x){ return x.id === id; });
+  if (!b) return Promise.resolve();
+  var p = setDoc(doc(db, "branches", id), payload(b));
+  if (id === data.selected) setSaved("נשמר במכשיר, מסנכרן…");
+  return p.then(function(){ if (id === data.selected) setSaved("נשמר בענן ✓", true); })
+          .catch(function(e){ showErr(errText(e)); setSaved(""); });
+}
+function flushAll(){ Object.keys(dirty).forEach(flush); }
+window.addEventListener("pagehide", flushAll);
+document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "hidden") flushAll(); });
+
+function startData(){
+  if (started) return; started = true;
+  subs.branches = onSnapshot(collection(db, "branches"), { includeMetadataChanges: true }, function(snap){
+    var curChanged = false;
+    snap.docChanges().forEach(function(ch){
+      var id = ch.doc.id;
+      if (ch.type === "removed") {
+        data.branches = data.branches.filter(function(b){ return b.id !== id; });
+        delete sigs[id]; delete photos[id];
+        if (id === data.selected) curChanged = true;
+        return;
+      }
+      var exists = data.branches.some(function(b){ return b.id === id; });
+      // שינוי שלנו שעוד לא נשמר בשרת, או סניף שעורכים עכשיו: הנתונים המקומיים עדכניים יותר
+      if (dirty[id] || (exists && ch.doc.metadata.hasPendingWrites)) return;
+      var nb = fromDoc(ch.doc);
+      if (exists) data.branches = data.branches.map(function(b){ return b.id === id ? nb : b; });
+      else data.branches.push(nb);
+      sigs[id] = sig(nb);
+      if (id === data.selected) curChanged = true;
+    });
+    if (!loaded) {
+      if (snap.metadata.fromCache && snap.empty) return; // מחכים לתשובה מהשרת
+      loaded = true;
+      var s = null; try { s = localStorage.getItem(SEL_KEY); } catch(e) {}
+      data.selected = s && data.branches.some(function(b){ return b.id === s; }) ? s : (sorted()[0] || {}).id || null;
+      render(); offerMigration(); return;
+    }
+    if (!current()) { data.selected = (sorted()[0] || {}).id || null; curChanged = true; watchPhotos(); }
+    renderSelect(); renderSummary();
+    if (curChanged) refreshDetail();
+  }, function(err){ showErr(errText(err)); });
+}
+function sorted(){
+  return data.branches.slice().sort(function(a,b){ return String(a.number).localeCompare(String(b.number), "he", {numeric:true}); });
+}
+function watchPhotos(){
+  var id = data.selected;
+  if (photoBranch === id) return;
+  if (subs.photos) { subs.photos(); subs.photos = null; }
+  photoBranch = id; if (!id) return;
+  subs.photos = onSnapshot(collection(db, "branches", id, "photos"), function(snap){
+    var o = { photos: [], regPhotos: [] };
+    snap.forEach(function(d){ var p = d.data(); (o[p.key] = o[p.key] || []).push({ id: d.id, src: p.src, created: p.created || 0 }); });
+    Object.keys(o).forEach(function(k){ o[k].sort(function(a, b){ return a.created - b.created; }); });
+    photos[id] = o;
+    if (id === data.selected) refreshDetail();
+  }, function(err){ showErr(errText(err)); });
+}
+function refreshDetail(){
+  var a = document.activeElement;
+  if (a && $("detail").contains(a) && (a.tagName === "INPUT" || a.tagName === "SELECT")) { pendingRemote = true; return; }
+  pendingRemote = false; renderDetail();
+}
+function deleteInChunks(refs){
+  var chain = Promise.resolve();
+  for (var i = 0; i < refs.length; i += 400) {
+    (function(part){
+      chain = chain.then(function(){ var bt = writeBatch(db); part.forEach(function(r){ bt.delete(r); }); return bt.commit(); });
+    })(refs.slice(i, i + 400));
+  }
+  return chain;
+}
+function deleteBranch(id){
+  clearTimeout(dirty[id]); delete dirty[id];
+  data.branches = data.branches.filter(function(o){ return o.id !== id; });
+  delete sigs[id]; delete photos[id];
+  return getDocs(collection(db, "branches", id, "photos")).then(function(snap){
+    var refs = []; snap.forEach(function(d){ refs.push(d.ref); });
+    refs.push(doc(db, "branches", id));
+    return deleteInChunks(refs);
+  });
+}
+async function uploadBranches(list, replace){
+  showErr(""); toolMsg("מעלה נתונים לענן…");
+  var fails = 0;
+  try {
+    if (replace) { for (const b of data.branches.slice()) await deleteBranch(b.id); }
+    for (const ob of list) {
+      var b = JSON.parse(JSON.stringify(ob));
+      b.id = b.id || uid(); b.stations = b.stations || [];
+      await setDoc(doc(db, "branches", b.id), payload(b));
+      for (const key of ["photos", "regPhotos"]) {
+        for (const p of (b[key] || [])) {
+          try { await setDoc(doc(db, "branches", b.id, "photos", p.id || uid()), { key: key, src: p.src, created: Date.now(), by: me.email }); }
+          catch(e) { fails++; }
+        }
+      }
+    }
+    toolMsg("");
+    ask("הנתונים הועלו לענן." + (fails ? "\n" + fails + " תמונות לא עלו (גדולות מדי או לא תקינות)." : ""), null, true);
+    return true;
+  } catch(e) { toolMsg(""); showErr(errText(e)); return false; }
+}
+function offerMigration(){
+  if (!canEdit || data.branches.length) return;
+  var d;
+  try {
+    if (localStorage.getItem(MIGRATED_KEY)) return;
+    d = JSON.parse(localStorage.getItem(LEGACY_KEY) || "null");
+  } catch(e) { return; }
+  if (!d || !Array.isArray(d.branches) || !d.branches.length) return;
+  ask("נמצאו " + d.branches.length + " סניפים ששמורים בדפדפן הזה מלפני החיבור לענן.\nלהעלות אותם עכשיו?", function(){
+    uploadBranches(d.branches, false).then(function(ok){ if (ok) { try { localStorage.setItem(MIGRATED_KEY, "1"); } catch(e) {} } });
+  });
+}
+
+/* ---------- תצוגה ---------- */
+function sel(f, label, val){
+  var v = val === "תקין" ? "ok" : val === "לא תקין" ? "bad" : "";
+  return '<div><label>' + label + '</label><select data-f="' + f + '" data-v="' + v + '">' +
+    '<option value=""' + (v === "" ? " selected" : "") + '>בחר</option>' +
+    '<option value="תקין"' + (v === "ok" ? " selected" : "") + '>תקין</option>' +
+    '<option value="לא תקין"' + (v === "bad" ? " selected" : "") + '>לא תקין</option></select></div>';
+}
+function renderSelect(){
+  var s = $("branchSel");
+  var list = sorted();
+  if (!list.length) { s.innerHTML = '<option value="">אין סניפים עדיין</option>'; s.disabled = true; return; }
+  s.disabled = false;
+  s.innerHTML = list.map(function(b){
+    return '<option value="' + esc(b.id) + '"' + (b.id === data.selected ? " selected" : "") + ">" +
+      esc(b.number) + (b.name ? " – " + esc(b.name) : "") + "</option>";
+  }).join("");
+}
+function printersPanel(b){
+  var list = b.printers || [];
+  var rows = list.map(function(p){
+    return '<div class="row prow" data-pid="' + esc(p.id) + '">' +
+      '<div><label>כתובת IP</label><input class="ltr" data-pf="ip" inputmode="decimal" autocomplete="off" placeholder="192.168.1.10" value="' + esc(p.ip) + '"></div>' +
+      '<div><label>חותך</label><select data-pf="cut">' +
+        '<option value="">בחר</option>' +
+        '<option value="חותך"' + (p.cut === "חותך" ? " selected" : "") + '>חותך</option>' +
+        '<option value="לא חותך"' + (p.cut === "לא חותך" ? " selected" : "") + '>לא חותך</option></select></div>' +
+      '<button type="button" class="danger x" data-delprinter="' + esc(p.id) + '" aria-label="מחק מדפסת">מחק</button></div>';
+  }).join("");
+  return '<section class="panel"><div class="head"><h2>מדפסות (' + list.length + ')</h2>' +
+    '<button type="button" class="primary" id="addPrinter">הוסף מדפסת</button></div>' +
+    (rows ? '<div class="rows">' + rows + '</div>' : '<p class="empty">אין מדפסות בסניף הזה.</p>') +
+    '</section>';
+}
+function osSel(val){
+  return '<div><label>מערכת הפעלה</label><select data-f="os">' +
+    '<option value="">בחר</option>' +
+    '<option value="לינוקס"' + (val === "לינוקס" ? " selected" : "") + '>לינוקס</option>' +
+    '<option value="ווינדוס"' + (val === "ווינדוס" ? " selected" : "") + '>ווינדוס</option></select></div>';
+}
+var FIXED = [["mikelin", "מייקלין"], ["shilu", "שילוח"], ["pickup", "פיקאפ"]];
+function fixedPanel(b){
+  var f = b.fixed || {};
+  return '<section class="panel"><div class="head"><h2>מייקלין, שילוח ופיקאפ</h2></div><div class="rows">' +
+    FIXED.map(function(x){
+      var d = f[x[0]] || {};
+      return '<div class="row frow" data-fkey="' + x[0] + '"><div class="fname">' + x[1] + '</div>' +
+        sel("st1", "ST1", d.st1) + sel("me", "MANAGEENGINE", d.me) +
+        '<div><label>מקום</label><input class="ltr" data-f="place" inputmode="decimal" autocomplete="off" value="' + esc(d.place) + '"></div>' + osSel(d.os) + '</div>';
+    }).join("") + '</div></section>';
+}
+function photoPanel(title, key, b){
+  var got = photos[b.id];
+  var list = got ? (got[key] || []) : [];
+  return '<section class="panel">' +
+    '<div class="head"><h2>' + title + ' (' + list.length + ')</h2>' +
+    '<button type="button" class="primary" data-addkey="' + key + '">הוסף תמונה</button>' +
+    '<input type="file" id="file-' + key + '" data-filekey="' + key + '" accept="image/*" multiple hidden></div>' +
+    (!got ? '<p class="empty">טוען תמונות…</p>' :
+     list.length ? '<div class="gallery">' + list.map(function(p){
+      return '<figure><img src="' + esc(p.src) + '" alt="' + title + '"><button type="button" class="danger" data-delkey="' + key + '" data-delid="' + esc(p.id) + '">מחק</button></figure>';
+    }).join("") + '</div>' : '<p class="empty">עוד לא הועלו תמונות לסניף הזה.</p>') +
+  '</section>';
+}
+function renderDetail(){
+  var box = $("detail");
+  var b = current();
+  if (!b) { box.innerHTML = '<div class="panel none">' + (canEdit ? "הוסף סניף ראשון כדי להתחיל." : "אין סניפים עדיין.") + '</div>'; return; }
+  var rows = b.stations.map(function(s){
+    return '<div class="row" data-id="' + esc(s.id) + '">' +
+      '<div><label>מספר עמדה</label><input class="ltr" data-f="reg" inputmode="numeric" value="' + esc(s.reg) + '"></div>' +
+      '<div><label>מספר אשראי</label><input class="ltr" data-f="card" inputmode="numeric" autocomplete="off" value="' + esc(s.card) + '"></div>' +
+      '<div><label>מספר טלפון</label><input class="ltr" data-f="phone" type="tel" autocomplete="off" value="' + esc(s.phone) + '"></div>' +
+      sel("st1", "ST1", s.st1) + sel("me", "MANAGEENGINE", s.me) +
+      '<div><label>מקום</label><input class="ltr" data-f="place" inputmode="decimal" autocomplete="off" value="' + esc(s.place) + '"></div>' +
+      osSel(s.os) +
+      '<button type="button" class="danger x" data-del="' + esc(s.id) + '" aria-label="מחק עמדה">מחק</button>' +
+    '</div>';
+  }).join("");
+  box.innerHTML =
+    '<section class="panel">' +
+      '<div class="head"><h2>פרטי הסניף</h2><span class="saved" id="savedMsg" aria-live="polite"></span></div>' +
+      '<p class="last">עדכון אחרון בסניף: <strong id="lastSaved">' + esc(lastText(b)) + '</strong></p>' +
+      '<div class="fields">' +
+        '<div><label for="bNum">מספר סניף</label><input id="bNum" class="ltr" inputmode="numeric" value="' + esc(b.number) + '"></div>' +
+        '<div><label for="bName">שם סניף</label><input id="bName" value="' + esc(b.name) + '"></div>' +
+      '</div>' +
+      '<p class="err" id="numErr" role="alert"></p>' +
+    '</section>' +
+    '<section class="panel">' +
+      '<div class="head"><h2>עמדות (' + b.stations.length + ')</h2>' +
+        '<button type="button" class="primary" id="addStation">הוסף עמדה</button></div>' +
+      (rows ? '<div class="rows">' + rows + '</div>' : '<p class="empty">אין עמדות בסניף הזה.</p>') +
+    '</section>' +
+    fixedPanel(b) +
+    printersPanel(b) +
+    photoPanel("ארון תקשורת", "photos", b) +
+    photoPanel("קופות", "regPhotos", b) +
+    '<button type="button" class="danger" id="delBranch">מחק את הסניף</button>';
+  if (!canEdit) box.querySelectorAll("input,select").forEach(function(el){ el.disabled = true; });
+}
+function render(){ renderSelect(); watchPhotos(); renderDetail(); renderSummary(); }
+
+/* ---------- אירועים: סניפים ---------- */
+$("branchSel").addEventListener("change", function(e){
+  data.selected = e.target.value; rememberSel(); watchPhotos(); renderDetail();
+});
+$("addBranchBtn").addEventListener("click", function(){
+  $("newBox").classList.add("open"); $("newNum").focus();
+});
+$("cancelBtn").addEventListener("click", function(){
+  $("newBox").classList.remove("open"); $("newNum").value = ""; $("newName").value = ""; showErr("");
+});
+function createBranch(){
+  if (!canEdit) return;
+  var num = $("newNum").value.trim();
+  if (!num) { showErr("הכנס מספר סניף."); return; }
+  if (data.branches.some(function(b){ return String(b.number) === num; })) { showErr("סניף עם המספר הזה כבר קיים."); return; }
+  var b = { id: uid(), number: num, name: $("newName").value.trim(), stations: [], fixed: {}, printers: [], visits: [] };
+  markVisit(b);
+  data.branches.push(b); sigs[b.id] = sig(b); data.selected = b.id; rememberSel();
+  $("newNum").value = ""; $("newName").value = ""; $("newBox").classList.remove("open"); showErr("");
+  render(); flush(b.id);
+}
+$("createBtn").addEventListener("click", createBranch);
+$("newNum").addEventListener("keydown", function(e){ if (e.key === "Enter") createBranch(); });
+$("newName").addEventListener("keydown", function(e){ if (e.key === "Enter") createBranch(); });
+
+$("detail").addEventListener("focusout", function(){
+  setTimeout(function(){ if (pendingRemote) refreshDetail(); }, 0);
+});
+$("detail").addEventListener("input", function(e){
+  var b = current(); if (!b || !canEdit) return;
+  var t = e.target;
+  if (t.id === "bName") { b.name = t.value; save(); renderSelect(); return; }
+  if (t.id === "bNum") {
+    var v = t.value.trim();
+    if (!v) { $("numErr").textContent = "מספר סניף לא יכול להיות ריק."; return; }
+    if (data.branches.some(function(o){ return o.id !== b.id && String(o.number) === v; })) { $("numErr").textContent = "סניף עם המספר הזה כבר קיים."; return; }
+    $("numErr").textContent = ""; b.number = v; save(); renderSelect(); return;
+  }
+  var row = t.closest(".row");
+  if (t.dataset.f === "place") {
+    var c = t.value.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+    var i = c.indexOf(".");
+    if (i !== -1) c = c.slice(0, i + 1) + c.slice(i + 1).replace(/\./g, "");
+    if (c !== t.value) t.value = c;
+  }
+  if (row && row.dataset.pid && t.dataset.pf) {
+    if (t.dataset.pf === "ip") {
+      var cl = t.value.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+      if (cl !== t.value) t.value = cl;
+    }
+    var pr = (b.printers || []).find(function(x){ return x.id === row.dataset.pid; });
+    if (pr) { pr[t.dataset.pf] = t.value; save(); }
+    return;
+  }
+  if (row && row.dataset.fkey && t.dataset.f) {
+    b.fixed = b.fixed || {};
+    var fd = b.fixed[row.dataset.fkey] = b.fixed[row.dataset.fkey] || {};
+    fd[t.dataset.f] = t.value;
+    if (t.tagName === "SELECT") t.dataset.v = t.value === "תקין" ? "ok" : t.value === "לא תקין" ? "bad" : "";
+    save(); return;
+  }
+  if (row && t.dataset.f) {
+    var s = b.stations.find(function(x){ return x.id === row.dataset.id; });
+    if (s) { s[t.dataset.f] = t.value; if (t.tagName === "SELECT") t.dataset.v = t.value === "תקין" ? "ok" : t.value === "לא תקין" ? "bad" : ""; save(); }
+  }
+});
+$("detail").addEventListener("click", function(e){
+  var b = current(); if (!b) return;
+  var t = e.target;
+  if (t.tagName === "IMG") { openBox(t.src); return; }
+  if (!canEdit) return;
+  if (t.id === "addPrinter") {
+    b.printers = b.printers || [];
+    b.printers.push({ id: uid(), ip: "", cut: "" });
+    save(); renderDetail();
+    var ips = document.querySelectorAll('.prow [data-pf="ip"]');
+    if (ips.length) ips[ips.length - 1].focus();
+    return;
+  }
+  if (t.dataset.delprinter) {
+    b.printers = (b.printers || []).filter(function(p){ return p.id !== t.dataset.delprinter; });
+    save(); renderDetail(); return;
+  }
+  if (t.dataset.addkey) { $("file-" + t.dataset.addkey).click(); return; }
+  if (t.dataset.delkey) {
+    var bid = b.id, pid = t.dataset.delid;
+    ask("למחוק את התמונה?", function(){
+      deleteDoc(doc(db, "branches", bid, "photos", pid)).catch(function(err){ showErr(errText(err)); });
+      touch(bid);
+    });
+    return;
+  }
+  if (t.id === "addStation") {
+    b.stations.push({ id: uid(), reg: String(b.stations.length + 1), card: "", phone: "", st1: "", me: "", place: "" });
+    save(); renderDetail();
+    var inputs = document.querySelectorAll('.row [data-f="card"]');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  } else if (t.dataset.del) {
+    b.stations = b.stations.filter(function(s){ return s.id !== t.dataset.del; });
+    save(); renderDetail();
+  } else if (t.id === "delBranch") {
+    ask("למחוק את סניף " + b.number + " וכל העמדות והתמונות שלו?\nהמחיקה היא לכל המשתמשים.", function(){
+      deleteBranch(b.id).catch(function(err){ showErr(errText(err)); });
+      data.selected = (sorted()[0] || {}).id || null; rememberSel();
+      render();
+    });
+  }
+});
+
+/* ---------- תמונות ---------- */
+function loadImg(file){
+  return new Promise(function(res, rej){
+    var r = new FileReader();
+    r.onload = function(){ var img = new Image(); img.onload = function(){ res(img); }; img.onerror = rej; img.src = r.result; };
+    r.onerror = rej; r.readAsDataURL(file);
+  });
+}
+function compress(file){
+  return loadImg(file).then(function(img){
+    // מסמך ב-Firestore מוגבל ל-1MB, אז מקטינים עד שהתמונה נכנסת
+    var tries = [[1200, 0.7], [1000, 0.6], [800, 0.55], [600, 0.5]];
+    for (var i = 0; i < tries.length; i++) {
+      var k = Math.min(1, tries[i][0] / Math.max(img.width, img.height));
+      var c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      var s = c.toDataURL("image/jpeg", tries[i][1]);
+      if (s.length < 900000) return s;
+    }
+    throw new Error("big");
+  });
+}
+function addPhotos(files, key){
+  var b = current(); if (!b || !files.length || !canEdit) return;
+  var id = b.id;
+  setSaved("מעלה תמונות…");
+  Promise.all(Array.prototype.slice.call(files).map(compress)).then(function(srcs){
+    var ups = srcs.map(function(s){
+      return addDoc(collection(db, "branches", id, "photos"), { key: key, src: s, created: Date.now(), by: me.email });
+    });
+    touch(id);
+    return Promise.all(ups);
+  }).then(function(){ if (id === data.selected) setSaved("נשמר בענן ✓", true); })
+    .catch(function(err){ setSaved(""); showErr(err && err.code ? errText(err) : "לא הצלחתי לקרוא את התמונה."); });
+}
+function openBox(src){
+  var o = document.createElement("div"); o.className = "box";
+  var img = document.createElement("img"); img.alt = ""; img.src = src; o.appendChild(img);
+  o.addEventListener("click", function(){ o.remove(); });
+  document.body.appendChild(o);
+}
+$("detail").addEventListener("change", function(e){
+  if (e.target.dataset.filekey) { addPhotos(e.target.files, e.target.dataset.filekey); e.target.value = ""; }
+});
+
+// in-page dialog (browser popups can be blocked here)
+function ask(msg, yes, okOnly){
+  var o = document.createElement("div"); o.className = "box"; o.style.cursor = "default";
+  o.innerHTML = '<div class="panel" style="max-width:440px;margin:0"><p style="margin-top:0;white-space:pre-wrap;max-height:50vh;overflow:auto"></p><div class="pick"><button type="button" class="primary" data-y>אישור</button>' + (okOnly ? '' : '<button type="button" data-n>ביטול</button>') + '</div></div>';
+  o.querySelector("p").textContent = msg;
+  o.addEventListener("click", function(e){
+    if (e.target.hasAttribute("data-y")) { o.remove(); if (yes) yes(); }
+    else if (e.target === o || e.target.hasAttribute("data-n")) { o.remove(); }
+  });
+  document.body.appendChild(o);
+}
+
+/* ---------- סיכום חודשי ---------- */
+function buildSummary(){
+  var ym = $("sumMonth").value;
+  if (!ym) return "בחר חודש.";
+  var rows = [];
+  data.branches.forEach(function(b){
+    var days = (b.visits || []).slice();
+    if (b.updated) { var k = dayKey(b.updated); if (days.indexOf(k) === -1) days.push(k); }
+    days = days.filter(function(k){ return k.indexOf(ym) === 0; }).sort();
+    if (days.length) rows.push({ b: b, days: days });
+  });
+  rows.sort(function(x, y){ return String(x.b.number).localeCompare(String(y.b.number), "he", { numeric: true }); });
+  var p = ym.split("-");
+  var lines = ["סיכום ביקורים לחודש " + p[1] + "/" + p[0], ""];
+  if (!rows.length) { lines.push("לא נרשמו ביקורים בחודש הזה."); }
+  else {
+    lines.push("ביקרת ב-" + rows.length + " סניפים:", "");
+    rows.forEach(function(r){
+      lines.push("סניף " + r.b.number + (r.b.name ? " (" + r.b.name + ")" : "") + ": " +
+        r.days.map(function(k){ return k.slice(8) + "/" + k.slice(5, 7); }).join(", "));
+    });
+  }
+  return lines.join("\n");
+}
+function renderSummary(){ var o = $("sumOut"); if (o) o.textContent = buildSummary(); }
+function sumNote(t){ var m = $("sumMsg"); m.textContent = t; setTimeout(function(){ m.textContent = ""; }, 2500); }
+$("sumMonth").value = dayKey(Date.now()).slice(0, 7);
+try { $("sumMail").value = localStorage.getItem(SUM_KEY) || ""; } catch(e) {}
+$("sumMonth").addEventListener("input", renderSummary);
+$("sumMail").addEventListener("input", function(){ try { localStorage.setItem(SUM_KEY, this.value); } catch(e) {} });
+$("sumSend").addEventListener("click", function(){
+  var ym = $("sumMonth").value; if (!ym) { sumNote("בחר חודש."); return; }
+  var p = ym.split("-");
+  var to = $("sumMail").value.trim();
+  var url = "mailto:" + encodeURIComponent(to).replace(/%40/g, "@") +
+    "?subject=" + encodeURIComponent("סיכום ביקורים בסניפים " + p[1] + "/" + p[0]) +
+    "&body=" + encodeURIComponent(buildSummary());
+  var a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  sumNote("פותח את המייל. אם לא נפתח, השתמש בהעתקה.");
+});
+$("sumGmail").addEventListener("click", function(){
+  var ym = $("sumMonth").value; if (!ym) { sumNote("בחר חודש."); return; }
+  var p = ym.split("-");
+  var url = "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent($("sumMail").value.trim()) +
+    "&su=" + encodeURIComponent("סיכום ביקורים בסניפים " + p[1] + "/" + p[0]) +
+    "&body=" + encodeURIComponent(buildSummary());
+  var a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+});
+$("sumCopy").addEventListener("click", function(){
+  var txt = buildSummary();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function(){ sumNote("הועתק"); }, function(){ sumNote("ההעתקה נכשלה. סמן את הטקסט ידנית."); });
+  } else { sumNote("ההעתקה לא נתמכת. סמן את הטקסט ידנית."); }
+});
+
+/* ---------- גיבוי ---------- */
+$("exportBtn").addEventListener("click", async function(){
+  toolMsg("מכין גיבוי…");
+  try {
+    flushAll();
+    var out = { branches: [], selected: data.selected };
+    for (const b of data.branches) {
+      var nb = JSON.parse(JSON.stringify(b)); nb.photos = []; nb.regPhotos = [];
+      var snap = await getDocs(collection(db, "branches", b.id, "photos"));
+      snap.forEach(function(d){ var p = d.data(); (nb[p.key] = nb[p.key] || []).push({ id: d.id, src: p.src }); });
+      out.branches.push(nb);
+    }
+    var blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "branches-backup-" + dayKey(Date.now()) + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    toolMsg("");
+  } catch(e) { toolMsg(""); showErr(e && e.code ? errText(e) : "השמירה לקובץ לא נתמכת כאן."); }
+});
+$("importBtn").addEventListener("click", function(){ $("importFile").click(); });
+$("importFile").addEventListener("change", function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try {
+      var d = JSON.parse(r.result);
+      if (!d || !Array.isArray(d.branches)) throw new Error("bad");
+      ask("הטעינה תחליף את כל הנתונים בענן, לכל המשתמשים. להמשיך?", function(){ uploadBranches(d.branches, true); });
+    } catch(err) { showErr("הקובץ לא תקין."); }
+  };
+  r.readAsText(f); e.target.value = "";
+});
+
+/* ---------- ניהול משתמשים (מנהל בלבד) ---------- */
+function startUsers(){
+  if (subs.users) return;
+  subs.users = onSnapshot(collection(db, "users"), function(snap){
+    var list = []; snap.forEach(function(d){ list.push(Object.assign({ uid: d.id }, d.data())); });
+    list.sort(function(a, b){ return (a.role === "pending" ? 0 : 1) - (b.role === "pending" ? 0 : 1) || String(a.email).localeCompare(String(b.email)); });
+    renderUsers(list);
+  }, function(err){ showErr(errText(err)); });
+}
+function stopUsers(){ if (subs.users) { subs.users(); subs.users = null; } }
+function renderUsers(list){
+  var pend = list.filter(function(u){ return u.role === "pending"; }).length;
+  $("userCount").textContent = pend ? pend + " ממתינים לאישור" : "";
+  $("userRows").innerHTML = list.map(function(u){
+    return '<div class="row urow"><div><div class="umail">' + esc(u.email) + '</div>' + (u.name ? '<div class="saved">' + esc(u.name) + '</div>' : '') + '</div>' +
+      '<div class="saved">' + (u.created ? "נרשם " + esc(fmt(u.created)) : "") + '</div>' +
+      '<div><label>הרשאה</label><select data-uid="' + esc(u.uid) + '"' + (u.uid === me.uid ? ' disabled title="אי אפשר לשנות את ההרשאה של עצמך"' : '') + '>' +
+      Object.keys(ROLES).map(function(r){ return '<option value="' + r + '"' + (u.role === r ? " selected" : "") + '>' + ROLES[r] + '</option>'; }).join("") +
+      '</select></div></div>';
+  }).join("") || '<p class="empty">אין משתמשים.</p>';
+}
+$("userRows").addEventListener("change", function(e){
+  var id = e.target.dataset.uid; if (!id) return;
+  updateDoc(doc(db, "users", id), { role: e.target.value }).catch(function(err){ showErr(errText(err)); });
+});
+
+/* ---------- התחברות ---------- */
+var regMode = false;
+function setMode(r){
+  regMode = r;
+  $("nameWrap").hidden = !r;
+  $("authGo").textContent = r ? "צור חשבון" : "התחבר";
+  $("authToggle").textContent = r ? "יש לך חשבון? התחברות" : "אין לך חשבון? הרשמה";
+  $("authPass").autocomplete = r ? "new-password" : "current-password";
+  $("authSub").textContent = r ? "חשבון חדש יחכה לאישור מנהל לפני שיוכל לראות נתונים." : "התחבר כדי להמשיך.";
+  $("authErr").textContent = "";
+}
+$("authToggle").addEventListener("click", function(){ setMode(!regMode); });
+function authGo(){
+  var email = $("authEmail").value.trim(), pass = $("authPass").value;
+  if (!email || !pass) { $("authErr").textContent = "הכנס אימייל וסיסמה."; return; }
+  var btn = $("authGo"); btn.disabled = true; $("authErr").textContent = "";
+  var p;
+  if (regMode) { pendingName = $("authName").value.trim(); p = createUserWithEmailAndPassword(auth, email, pass); }
+  else p = signInWithEmailAndPassword(auth, email, pass);
+  p.catch(function(e){ $("authErr").textContent = errText(e); }).finally(function(){ btn.disabled = false; });
+}
+$("authGo").addEventListener("click", authGo);
+["authEmail", "authPass", "authName"].forEach(function(id){
+  $(id).addEventListener("keydown", function(e){ if (e.key === "Enter") authGo(); });
+});
+$("authReset").addEventListener("click", function(){
+  var email = $("authEmail").value.trim();
+  if (!email) { $("authErr").textContent = "הכנס את האימייל שלך ולחץ שוב על שכחתי סיסמה."; return; }
+  sendPasswordResetEmail(auth, email)
+    .then(function(){ $("authErr").textContent = "אם קיים חשבון עם האימייל הזה, נשלח אליו קישור לאיפוס סיסמה."; })
+    .catch(function(e){ $("authErr").textContent = errText(e); });
+});
+function logout(){ flushAll(); signOut(auth); }
+$("logoutBtn").addEventListener("click", logout);
+$("pendLogout").addEventListener("click", logout);
+$("loadLogout").addEventListener("click", logout);
+
+function stopData(){
+  ["branches", "photos", "users"].forEach(function(k){ if (subs[k]) { subs[k](); subs[k] = null; } });
+  data = { branches: [], selected: null }; photos = {}; photoBranch = null; sigs = {}; loaded = false; started = false;
+}
+function stopAll(){
+  stopData();
+  if (subs.profile) { subs.profile(); subs.profile = null; }
+  me = null; canEdit = false; isAdmin = false;
+}
+
+onAuthStateChanged(auth, async function(user){
+  stopAll();
+  if (!user) { $("authPass").value = ""; setMode(false); show("authScreen"); return; }
+  $("loadMsg").textContent = "טוען…"; $("loadLogout").hidden = true; show("loadScreen");
+  var ref = doc(db, "users", user.uid);
+  try {
+    var s = await getDoc(ref);
+    if (!s.exists()) {
+      await setDoc(ref, { email: user.email, name: pendingName || user.displayName || "", role: "pending", created: Date.now() });
+    }
+  } catch(e) {
+    $("loadMsg").textContent = "לא הצלחתי לטעון את פרטי המשתמש: " + errText(e);
+    $("loadLogout").hidden = false; return;
+  }
+  subs.profile = onSnapshot(ref, function(snap){
+    var role = snap.exists() ? snap.data().role : "pending";
+    me = { uid: user.uid, email: user.email, role: role };
+    if (!(role in ROLES) || role === "pending") {
+      stopData(); $("pendMail").textContent = user.email; show("pendingScreen"); return;
+    }
+    var wasEdit = canEdit;
+    canEdit = role === "editor" || role === "admin";
+    isAdmin = role === "admin";
+    document.body.classList.toggle("ro", !canEdit);
+    $("whoMail").textContent = user.email;
+    $("whoRole").textContent = ROLES[role];
+    $("adminPanel").hidden = !isAdmin;
+    if (isAdmin) startUsers(); else stopUsers();
+    show("app");
+    if (!started) startData();
+    else if (wasEdit !== canEdit) renderDetail();
+  }, function(err){
+    $("loadMsg").textContent = "לא הצלחתי לטעון את פרטי המשתמש: " + errText(err);
+    $("loadLogout").hidden = false; show("loadScreen");
+  });
+});
+</script>
+</body>
+</html>
